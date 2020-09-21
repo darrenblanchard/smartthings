@@ -142,47 +142,23 @@ private Map parseNonIasButtonMessage(Map descMap){
             buttonNumber = 1
             }
             if (buttonNumber !=0) {
-            def descriptionText = "$device.displayName button $buttonNumber was $buttonState"
+            def descriptionText = "$device.displayName button $buttonNumber was $buttonState"        
             return createEvent(name: "button", value: buttonState, data: [buttonNumber: buttonNumber], descriptionText: descriptionText, isStateChange: true)
             
         }
         else {
             return [:]}
     }
-
-    else if (descMap.clusterInt == 0x0008) {
-        if (descMap.command == "05") {
-            state.buttonNumber = 1
-            getButtonResult("press", 1)
-        }
-        else if (descMap.command == "01") {
-            state.buttonNumber = 1
-            getButtonResult("press", 1)
-        }
-        else if (descMap.command == "03") {
-            getButtonResult("release", state.buttonNumber)
-        }
-    }
 }
 
 def refresh() {
     log.debug "Refreshing Battery"
-
-    return zigbee.readAttribute(zigbee.POWER_CONFIGURATION_CLUSTER, 0x20) +
-            zigbee.enrollResponse()
+    zigbee.readAttribute(zigbee.POWER_CONFIGURATION_CLUSTER, 0x20) + zigbee.enrollResponse()
 }
 
 def configure() {
     log.debug "Configuring Reporting, IAS CIE, and Bindings."
     def cmds = []
-    if (device.getDataValue("model") == "3450-L") {
-        cmds << [
-                "zdo bind 0x${device.deviceNetworkId} 1 1 6 {${device.zigbeeId}} {}", "delay 300",
-                "zdo bind 0x${device.deviceNetworkId} 2 1 6 {${device.zigbeeId}} {}", "delay 300",
-                "zdo bind 0x${device.deviceNetworkId} 3 1 6 {${device.zigbeeId}} {}", "delay 300",
-                "zdo bind 0x${device.deviceNetworkId} 4 1 6 {${device.zigbeeId}} {}", "delay 300"
-        ]
-    }
     return zigbee.onOffConfig() +
             zigbee.levelConfig() +
             zigbee.configureReporting(zigbee.POWER_CONFIGURATION_CLUSTER, 0x20, DataType.UINT8, 30, 21600, 0x01) +
@@ -218,7 +194,7 @@ private Map getButtonResult(buttonState, buttonNumber = 1) {
             return createEvent(name: "button", value: buttonState, data: [buttonNumber: buttonNumber], descriptionText: descriptionText, isStateChange: true)
         }
     }
-    else if (buttonState == 'press') {
+    else if (buttonState == 'pushed') {
         log.debug "Button was value : $buttonState"
         state.pressTime = now()
         log.info "presstime: ${state.pressTime}"
@@ -228,7 +204,7 @@ private Map getButtonResult(buttonState, buttonNumber = 1) {
 
 def installed() {
     initialize()
-
+    
     // Initialize default states
    
     sendEvent(name: "supportedButtonValues", value: ["pushed", "held", "double" ].encodeAsJSON(), displayed: false)
@@ -237,10 +213,9 @@ def installed() {
     
 }
 
-
-
 def updated() {
     initialize()
+   
 }
 
 def initialize() {
@@ -248,7 +223,6 @@ def initialize() {
 
     sendEvent(name: "DeviceWatch-Enroll", value: JsonOutput.toJson([protocol: "zigbee", scheme:"untracked"]), displayed: false)
     sendEvent(name: "supportedButtonValues", value: ["pushed", "held", "double" ].encodeAsJSON(), displayed: false)
-	sendEvent(name: "numberOfButtons", value: 1, displayed: false)
-    //sendEvent(name: "battery", value: 1, displayed: false)
+	sendEvent(name: "numberOfButtons", value: 1, displayed: false)  
 	sendEvent(name: "button", value: "standby", data: [buttonNumber: 1], displayed: false) // just to populate attribute?
 }
