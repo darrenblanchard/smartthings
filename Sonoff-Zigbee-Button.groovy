@@ -30,12 +30,7 @@ metadata {
 
         command "enrollResponse"
 
-        fingerprint inClusters: "0000, 0001, 0003, 0020, 0402, 0B05", outClusters: "0003, 0006, 0008, 0019", manufacturer: "OSRAM", model: "LIGHTIFY Dimming Switch", deviceJoinName: "OSRAM LIGHTIFY Dimming Switch"
-        fingerprint inClusters: "0000, 0001, 0003, 0020, 0402, 0B05", outClusters: "0003, 0006, 0008, 0019", manufacturer: "CentraLite", model: "3130", deviceJoinName: "Centralite Zigbee Smart Switch"
-        fingerprint inClusters: "0000, 0001, 0003, 0020, 0500", outClusters: "0003,0019", manufacturer: "CentraLite", model: "3455-L", deviceJoinName: "Iris Care Pendant"
-        fingerprint inClusters: "0000, 0001, 0003, 0007, 0020, 0402, 0B05", outClusters: "0003, 0006, 0019", manufacturer: "CentraLite", model: "3460-L", deviceJoinName: "Iris Smart Button"
-        fingerprint inClusters: "0000, 0001, 0003, 0007, 0020, 0B05", outClusters: "0003, 0006, 0019", manufacturer: "CentraLite", model:"3450-L", deviceJoinName: "Iris KeyFob"
-	fingerprint inClusters: "0000, 0001, 0003", outClusters: "0003, 0006", manufacturer: "eWeLink", model: "WB01", deviceJoinName: "Sonoff Wireless switch"
+        fingerprint inClusters: "0000, 0001, 0003", outClusters: "0003, 0006", manufacturer: "eWeLink", model: "WB01", deviceJoinName: "Sonoff Wireless switch"
     }
 
     simulator {}
@@ -74,7 +69,7 @@ def parse(String description) {
     else {
         if ((description?.startsWith("catchall:")) || (description?.startsWith("read attr -"))) {
             def descMap = zigbee.parseDescriptionAsMap(description)
-            if (descMap.clusterInt == 0x0001 && descMap.attrInt == 0x0020 && descMap.value != null) {
+            if (descMap.clusterInt == 0x0001 && descMap.attrInt == 0x0021 && descMap.value != null) {
                 event = getBatteryResult(zigbee.convertHexToInt(descMap.value))
 
             }
@@ -104,22 +99,18 @@ private Map parseIasButtonMessage(String description) {
 
 private Map getBatteryResult(rawValue) {
     log.debug 'Battery'
-    def volts = rawValue / 10
-    if (volts > 3.0 || volts == 0 || rawValue == 0xFF) {
-        return [:]
-    }
-    else {
+    def bat = rawValue / 2
+    if(bat != null) {
         def result = [
                 name: 'battery'
         ]
-        def minVolts = 2.1
-        def maxVolts = 3.0
-        def pct = (volts - minVolts) / (maxVolts - minVolts)
-        result.value = Math.min(100, (int)(pct * 100))
+        result.value = bat
         def linkText = getLinkText(device)
         result.descriptionText = "${linkText} battery was ${result.value}%"
-        sendEvent(name: "battery", value: 80, displayed: false)
         return result
+    }
+    else {
+            return [:]
     }
 }
 
@@ -154,7 +145,7 @@ private Map parseNonIasButtonMessage(Map descMap){
 
 def refresh() {
     log.debug "Refreshing Battery"
-    zigbee.readAttribute(zigbee.POWER_CONFIGURATION_CLUSTER, 0x20) + zigbee.enrollResponse()
+    return zigbee.readAttribute(zigbee.POWER_CONFIGURATION_CLUSTER, 0x21) + zigbee.enrollResponse()
 }
 
 def configure() {
@@ -162,9 +153,9 @@ def configure() {
     def cmds = []
     return zigbee.onOffConfig() +
             zigbee.levelConfig() +
-            zigbee.configureReporting(zigbee.POWER_CONFIGURATION_CLUSTER, 0x20, DataType.UINT8, 30, 21600, 0x01) +
+            zigbee.configureReporting(zigbee.POWER_CONFIGURATION_CLUSTER, 0x21, DataType.UINT8, 30, 21600, 0x01) +
             zigbee.enrollResponse() +
-            zigbee.readAttribute(zigbee.POWER_CONFIGURATION_CLUSTER, 0x20) +
+            zigbee.readAttribute(zigbee.POWER_CONFIGURATION_CLUSTER, 0x21) +
             cmds
 
 }
